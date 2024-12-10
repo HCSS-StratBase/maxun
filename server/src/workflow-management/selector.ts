@@ -843,6 +843,21 @@ export const getNonUniqueSelectors = async (page: Page, coordinates: Coordinates
         return path.join(' > ');
       }
 
+      function extractAttribute(element: HTMLElement, attributes: string[]): string | null {
+        for (const attr of attributes) {
+          const value = element.getAttribute(attr);
+          if (value && value.trim() !== '') {
+            return value;
+          }
+        }
+        return null;
+      }
+
+      function generateAttributeSelector(element: HTMLElement, attributes: string[]): string | null {
+        const attrValue = extractAttribute(element, attributes);
+        return attrValue ? `[${attributes.find(attr => element.getAttribute(attr) === attrValue)}="${CSS.escape(attrValue)}"]` : null;
+      }
+
       const originalEl = document.elementFromPoint(x, y) as HTMLElement;
       if (!originalEl) return null;
 
@@ -882,13 +897,19 @@ export const getNonUniqueSelectors = async (page: Page, coordinates: Coordinates
       }
     }
 
-      const generalSelector = getSelectorPath(element);
-      return {
-        generalSelector,
-      };
-    }, coordinates);
+    return {
+      generalSelector: getSelectorPath(element),
+      attrSelector: generateAttributeSelector(element, Object.values(element.attributes).map(attr => attr.name)),
+      testIdSelector: generateAttributeSelector(element, ['data-testid', 'data-test-id', 'data-testing', 'data-test', 'data-qa', 'data-cy']),
+      //hrefSelector: generateAttributeSelector(element, ['href']),
+      accessibilitySelector: generateAttributeSelector(element, ['aria-label', 'alt', 'title']),
+      formSelector: generateAttributeSelector(element, ['name', 'placeholder', 'for']),
+      text: element.innerText,
+      href: element.getAttribute('href')
+    };
+  }, coordinates);
 
-    return selectors || { generalSelector: '' };
+   return selectors || { generalSelector: '' };
   } catch (error) {
     console.error('Error in getNonUniqueSelectors:', error);
     return { generalSelector: '' };
